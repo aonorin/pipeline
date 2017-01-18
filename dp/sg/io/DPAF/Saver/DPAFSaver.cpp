@@ -1378,7 +1378,7 @@ void DPAFSaveTraverser::handlePipelineData( const dp::sg::core::PipelineData * p
     string name( getObjectName( p ) );
     if ( p->isDataShared() && ( m_sharedData.find( p->getDataID() ) != m_sharedData.end() ) )
     {
-      fprintf( m_fh, "EffectData\t%s\t%s\n\n", name.c_str(), m_sharedData[p->getDataID()].c_str() );
+      fprintf( m_fh, "PipelineData\t%s\t%s\n\n", name.c_str(), m_sharedData[p->getDataID()].c_str() );
     }
     else
     {
@@ -1386,7 +1386,7 @@ void DPAFSaveTraverser::handlePipelineData( const dp::sg::core::PipelineData * p
       {
         m_sharedData[p->getDataID()] = name;
       }
-      fprintf( m_fh, "EffectData\t%s\n{\n", name.c_str() );
+      fprintf( m_fh, "PipelineData\t%s\n{\n", name.c_str() );
       objectData( p );
       fprintf( m_fh, "\teffectFile\t%s\n", dp::util::makePathRelative( dp::fx::EffectLibrary::instance()->getEffectFile( m_effectSpecName ), m_basePaths ).c_str() );
       fprintf( m_fh, "\teffectSpec\t%s\n", m_effectSpecName.c_str() );
@@ -1873,7 +1873,7 @@ void DPAFSaveTraverser::handleSampler( const Sampler * p )
       const TextureSharedPtr & texture = p->getTexture();
       if ( texture && std::dynamic_pointer_cast<TextureHost>(texture) )
       {
-        TextureHostSharedPtr const& textureHost = std::static_pointer_cast<TextureHost>(texture);
+        TextureHostSharedPtr const textureHost = std::static_pointer_cast<TextureHost>(texture);
         if ( textureHost->getFileName().empty() )
         {
           textureImage( textureHost );
@@ -1885,7 +1885,7 @@ void DPAFSaveTraverser::handleSampler( const Sampler * p )
       objectData( p );
       if ( texture && std::dynamic_pointer_cast<TextureHost>(texture) )
       {
-        TextureHostSharedPtr const& textureHost = std::static_pointer_cast<TextureHost>(texture);
+        TextureHostSharedPtr const textureHost = std::static_pointer_cast<TextureHost>(texture);
         if ( textureHost->getFileName().empty() )
         {
           DP_ASSERT( m_textureImageNames.find(textureHost) != m_textureImageNames.end() );

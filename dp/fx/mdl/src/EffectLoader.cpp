@@ -553,7 +553,7 @@ namespace dp
           snippets.push_back( std::make_shared<dp::fx::StringSnippet>( oss.str() ) );
         }
         {
-          std::string environ = surfaceData.scattering;
+          std::string environment = surfaceData.scattering;
           static std::set<std::string> environmentFunctions = 
           {
             { "backscatteringGlossyReflectionBSDF"  },
@@ -565,12 +565,12 @@ namespace dp
           };
           for ( std::set<std::string>::const_iterator it = environmentFunctions.begin(); it != environmentFunctions.end(); ++it )
           {
-            boost::algorithm::replace_all( environ, *it, *it + "Environment" );
+            boost::algorithm::replace_all( environment, *it, *it + "Environment" );
           }
           std::ostringstream oss;
           oss << "vec4 evalEnvironment" << postFix << "( in vec3 normal )" << std::endl
               << "{" << std::endl
-              << "  return( " << ( ( environ == surfaceData.scattering ) ? "vec4(0,0,0,1)" : environ ) << " );" << std::endl
+              << "  return( " << ( ( environment == surfaceData.scattering ) ? "vec4(0,0,0,1)" : environment ) << " );" << std::endl
               << "}" << std::endl << std::endl;
           snippets.push_back( std::make_shared<dp::fx::StringSnippet>( oss.str() ) );
         }
@@ -604,16 +604,16 @@ namespace dp
         return( it->second );
       }
 
-      dp::fx::ParameterSpec createParameterSpec( ParameterData const& pd, std::map<std::string,dp::fx::EnumSpecSharedPtr> const& enumSpecs )
+      dp::fx::ParameterSpec createParameterSpec(ParameterData const& pd, std::map<std::string, dp::fx::EnumSpecSharedPtr> const& enumSpecs)
       {
-        std::map<std::string,dp::fx::EnumSpecSharedPtr>::const_iterator it = enumSpecs.find( pd.type );
-        if ( it != enumSpecs.end() )
+        std::map<std::string, dp::fx::EnumSpecSharedPtr>::const_iterator it = enumSpecs.find(pd.type);
+        if (it != enumSpecs.end())
         {
-          return( dp::fx::ParameterSpec( pd.name, it->second, 0, pd.value, pd.annotations ) );
+          return(dp::fx::ParameterSpec(pd.name, it->second, 0, pd.value, pd.annotations));
         }
         else
         {
-          return( dp::fx::ParameterSpec( pd.name, getType( pd.type ), dp::util::stringToSemantic( pd.semantic), 0, pd.value, pd.annotations) );
+          return(dp::fx::ParameterSpec(pd.name, getType(pd.type), dp::util::stringToSemantic(pd.semantic), 0, pd.value, pd.annotations));
         }
       }
 
@@ -656,7 +656,14 @@ namespace dp
                 for ( std::set<unsigned int>::const_iterator pit = sit->second.parameters.begin() ; pit != sit->second.parameters.end() ; ++pit )
                 {
                   DP_ASSERT( *pit < mit->second.parameters.size() );
-                  params.push_back( createParameterSpec( mit->second.parameters[*pit], enumSpecs ) );
+                  DP_ASSERT(mit->second.parameters[*pit].first < mit->second.parameterData.size());
+                  DP_ASSERT((mit->second.parameters[*pit].second == ~0) || (mit->second.parameters[*pit].second < mit->second.parameterData.size()));
+
+                  params.push_back(createParameterSpec(mit->second.parameterData[mit->second.parameters[*pit].first], enumSpecs));
+                  if (mit->second.parameters[*pit].second != ~0)
+                  {
+                    params.push_back(createParameterSpec(mit->second.parameterData[mit->second.parameters[*pit].second], enumSpecs));
+                  }
                 }
 
                 dp::fx::ParameterGroupSpecSharedPtr pgs = dp::fx::ParameterGroupSpec::create( mit->first + "_" + dp::fx::getDomainName( sit->first ) + "_parameters", params );
@@ -764,7 +771,7 @@ namespace dp
       {
         snippets.clear();
 
-        dp::fx::mdl::EffectSpecSharedPtr const& effectSpec = std::static_pointer_cast<dp::fx::mdl::EffectSpec>(dp::fx::EffectLibrary::instance()->getEffectSpec(configuration.getName()));
+        dp::fx::mdl::EffectSpecSharedPtr effectSpec = std::static_pointer_cast<dp::fx::mdl::EffectSpec>(dp::fx::EffectLibrary::instance()->getEffectSpec(configuration.getName()));
 
         // All other domains have only one set of code snippets per technique and ignore the signature.
         dp::fx::Domain signatureDomain = Domain::FRAGMENT;

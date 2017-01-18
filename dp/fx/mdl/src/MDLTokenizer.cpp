@@ -186,7 +186,11 @@ namespace dp
             break;
           case mi::base::MESSAGE_SEVERITY_DEBUG :
             levelString = "DEBUG";
-            handled = boost::contains( m, "searching for" ) && boost::contains( m, "in path" ) && boost::contains( m, "not found" );
+            handled = (boost::contains( m, "searching for" ) && boost::contains( m, "in path" ) && boost::contains( m, "not found" ))
+                   || (boost::starts_with(m, "Resolved") && boost::contains(m, "in") && boost::contains(m, "to"))
+                   || (boost::starts_with(m, "open file") && boost::ends_with(m, ", mode rb, ok"))
+                   || boost::starts_with(m, "... and mapped to texture")
+                   || boost::starts_with(m, "... and mapped to scene element");
             break;
           default:
             levelString = "UNKNOWN";
@@ -242,11 +246,15 @@ namespace dp
 
       MDLTokenizer::~MDLTokenizer()
       {
-        m_database.reset();
+        // throw away everything before m_neuray is shut down
+        m_mdlValueFactory.reset();
         m_mdlExpressionFactory.reset();
         m_mdlFactory.reset();
-        m_mdlCompiler.reset();    // throw away before m_neuray is shut down
-        m_neuray->shutdown();
+        m_transaction->commit();
+        m_transaction.reset();
+        m_mdlCompiler.reset();
+        m_database.reset();
+        DP_VERIFY(m_neuray->shutdown() == 0);
       }
 
       bool MDLTokenizer::checkDefaultField(std::string const& fieldName, mi::base::Handle<mi::neuraylib::IExpression const> const& expression)
@@ -338,7 +346,7 @@ namespace dp
                 mi::base::Handle<mi::neuraylib::IMaterial_instance> materialInstance = mi::base::make_handle(m_materialDefinition->create_material_instance(0, &result));
                 if (result == 0)
                 {
-                  m_compiledMaterial = mi::base::make_handle(materialInstance->create_compiled_material(mi::neuraylib::IMaterial_instance::CLASS_COMPILATION, 1.0f, &result));
+                  m_compiledMaterial = mi::base::make_handle(materialInstance->create_compiled_material(mi::neuraylib::IMaterial_instance::CLASS_COMPILATION, 1.0f, 380.0f, 780.0f, &result));
                   DP_ASSERT(result == 0);
 
                   tokenizeMaterial(module->get_material(i));
@@ -479,7 +487,8 @@ namespace dp
           mi::base::Handle<mi::neuraylib::IExpression_list const> arguments = mi::base::make_handle(call->get_arguments());
           for (mi::Size i = 0; i<arguments->get_size(); i++)
           {
-            tokenizeArgument(i, arguments->get_name(i), mi::base::make_handle(arguments->get_expression(i)), mi::base::make_handle(defaults->get_expression(i)));
+            tokenizeArgument(i, arguments->get_name(i), mi::base::make_handle(arguments->get_expression(i)),
+                             mi::base::make_handle(defaults->get_expression(functionDefinition->get_parameter_name(i))));
           }
           callEnd();
         }
@@ -544,9 +553,8 @@ namespace dp
 
       void MDLTokenizer::tokenizeLightProfile(mi::base::Handle<mi::neuraylib::IValue_light_profile const> const& value)
       {
-        if ( value )
+        if ( value && value->get_value() )
         {
-          DP_ASSERT( value->get_value() );
           std::string fileName = value->get_value();
           DP_ASSERT( boost::starts_with( fileName, "MI_default_lightprofile_" ) );
           boost::erase_head( fileName, static_cast<int>( strlen( "MI_default_lightprofile_" ) ) );
@@ -682,9 +690,8 @@ namespace dp
 
       void MDLTokenizer::tokenizeTexture( mi::base::Handle<mi::neuraylib::IValue_texture const> const& value )
       {
-        if ( value )
+        if ( value && value->get_value() )
         {
-          DP_ASSERT( value->get_value() );
           mi::base::Handle<mi::neuraylib::ITexture const> texture = mi::base::make_handle(m_transaction->access<mi::neuraylib::ITexture>(value->get_value()));
           std::string fileName = texture->get_image();
           DP_ASSERT( boost::starts_with( fileName, "MI_default_image_" ) );
@@ -768,7 +775,7 @@ namespace dp
           case mi::neuraylib::IValue::VK_INT :
             valueInt(value.get_interface<mi::neuraylib::IValue_int const>()->get_value());
             break;
-          case mi::neuraylib::IValue::VK_INVALID_REF :
+          case mi::neuraylib::IValue::VK_INVALID_DF:
             switch( type->get_kind() )
             {
               case mi::neuraylib::IType::TK_BSDF :
@@ -776,12 +783,6 @@ namespace dp
                 break;
               case mi::neuraylib::IType::TK_EDF :
                 defaultRef( "Edf" );
-                break;
-              case mi::neuraylib::IType::TK_LIGHT_PROFILE :
-                defaultRef( "LightProfile" );
-                break;
-              case mi::neuraylib::IType::TK_TEXTURE :
-                defaultRef( "Texture" );
                 break;
               case mi::neuraylib::IType::TK_VDF :
                 defaultRef( "Vdf" );

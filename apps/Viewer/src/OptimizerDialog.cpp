@@ -32,6 +32,7 @@
 #include <dp/sg/algorithm/UnifyTraverser.h>
 #include <dp/sg/algorithm/Optimize.h>
 #include "OptimizerDialog.h"
+#include "Log.h"
 #include "Viewer.h"
 
 using namespace dp::sg::core;
@@ -101,6 +102,7 @@ OptimizerDialog::OptimizerDialog( const SceneSharedPtr & scene, QWidget * parent
   firstColLayout->addWidget( m_eliminateBox );
   firstColLayout->addWidget( m_combineBox );
 
+  m_unifyBuffersButton = new QCheckBox(QApplication::translate(VIEWER_APPLICATION_NAME, "Unify Buffers"));
   m_unifyEffectDataButton = new QCheckBox( QApplication::translate( VIEWER_APPLICATION_NAME, "Unify EffectData" ) );
   m_unifyGeoNodesButton = new QCheckBox( QApplication::translate( VIEWER_APPLICATION_NAME, "Unify GeoNodes" ) );
   m_unifyGroupsButton = new QCheckBox( QApplication::translate( VIEWER_APPLICATION_NAME, "Unify Groups" ) );
@@ -119,6 +121,7 @@ OptimizerDialog::OptimizerDialog( const SceneSharedPtr & scene, QWidget * parent
   formLayout->addRow( QApplication::translate( VIEWER_APPLICATION_NAME, "Epsilon:" ), m_epsilonEdit );
 
   vBoxLayout = new QVBoxLayout;
+  vBoxLayout->addWidget(m_unifyBuffersButton);
   vBoxLayout->addWidget( m_unifyEffectDataButton );
   vBoxLayout->addWidget( m_unifyGeoNodesButton );
   vBoxLayout->addWidget( m_unifyGroupsButton );
@@ -240,6 +243,10 @@ void OptimizerDialog::accept()
   float epsilon = 0.0f;
   if ( m_unifyBox->isChecked() )
   {
+    if (m_unifyBuffersButton->isChecked())
+    {
+      unifyFlags |= dp::sg::algorithm::UnifyTraverser::Target::BUFFER;
+    }
     if ( m_unifyEffectDataButton->isChecked() )
     {
       unifyFlags |= dp::sg::algorithm::UnifyTraverser::Target::PIPELINE_DATA;
@@ -292,9 +299,13 @@ void OptimizerDialog::accept()
   }
 
   GetApp()->setOverrideCursor( Qt::WaitCursor );
+  dp::util::Timer timer;
+  timer.start();
   dp::sg::algorithm::optimizeScene( m_scene, m_ignoreNamesButton->isChecked(), m_identityToGroupButton->isChecked()
                , combineFlags, eliminateFlags, unifyFlags, epsilon
                , m_vertexCacheOptimizeButton->isChecked() );
+  timer.stop();
+  LogMessage("Optimizing took %f seconds.\n", timer.getTime());
   GetApp()->restoreOverrideCursor();
 
   QDialog::accept();
@@ -318,6 +329,7 @@ void OptimizerDialog::switchAllButtons( bool on )
   m_eliminateIndexSetsButton->setChecked( on );
   m_eliminateLODsButton->setChecked( on );
 
+  m_unifyBuffersButton->setChecked(on);
   m_unifyEffectDataButton->setChecked( on );
   m_unifyGeoNodesButton->setChecked( on );
   m_unifyGroupsButton->setChecked( on );

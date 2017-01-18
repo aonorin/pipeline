@@ -231,7 +231,7 @@ namespace dp
         bool equi = std::dynamic_pointer_cast<IndexSet>(object) && Object::isEquivalent( object, ignoreNames, deepCompare );
         if ( equi )
         {
-          IndexSetSharedPtr const& is = std::static_pointer_cast<IndexSet>(object);
+          IndexSetSharedPtr is = std::static_pointer_cast<IndexSet>(object);
 
           equi =    m_dataType              == is->m_dataType
                 &&  m_numberOfIndices       == is->m_numberOfIndices
@@ -240,15 +240,7 @@ namespace dp
 
           if ( equi && m_buffer )
           {
-            equi = ( m_buffer == is->m_buffer );
-
-            if ( !equi && deepCompare )
-            {
-              unsigned int numBytes = dp::checked_cast<unsigned int>( dp::getSizeOf( m_dataType ) * m_numberOfIndices );
-              Buffer::DataReadLock rhsBuffer( m_buffer );
-              Buffer::DataReadLock lhsBuffer( is->m_buffer );
-              equi = ( memcmp( rhsBuffer.getPtr(), lhsBuffer.getPtr(), numBytes ) == 0 );
-            }
+            equi = (m_buffer == is->m_buffer) || (deepCompare && m_buffer->isEquivalent(is->m_buffer, ignoreNames, deepCompare));
           }
         }
         return( equi );
